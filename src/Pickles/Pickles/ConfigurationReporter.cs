@@ -37,7 +37,9 @@ namespace PicklesDoc.Pickles
             writeToLog($"Include Experimental Features? : {(configuration.ShouldIncludeExperimentalFeatures ? "Yes" : "No")}");
             writeToLog($"Exclude Tag                    : {configuration.ExcludeTags}");
             writeToLog($"Technical Tag                    : {configuration.HideTags}");
-
+            //26.04.00 MI:add RCIS theme and story tag parsing from feature comments rapoe01 02/25/2019 - 
+            writeToLog($"Enable Comments                : {configuration.ShouldEnableComments}");
+            writeToLog($"Comment Parser                 : {configuration.commentParsing}");
             if (configuration.HasTestResults)
             {
             writeToLog($"Test Result Format             : {configuration.TestResultsFormat}");

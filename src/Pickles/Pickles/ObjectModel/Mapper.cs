@@ -21,10 +21,11 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-
+//26.04.00 MI:add RCIS theme and story tag parsing from feature comments rapoe01 02/25/2019 - 
+using System.Text.RegularExpressions;
 using PicklesDoc.Pickles.Extensions;
-
 using G = Gherkin.Ast;
+using Match = System.Text.RegularExpressions.Match;
 
 namespace PicklesDoc.Pickles.ObjectModel
 {
@@ -280,7 +281,8 @@ namespace PicklesDoc.Pickles.ObjectModel
                 feature.AddBackground(this.MapToScenario(background));
             }
 
-            if (this.configuration.ShouldEnableComments)
+            //26.04.00 MI:add RCIS theme and story tag parsing from feature comments rapoe01 02/25/2019 - 
+            if (this.configuration.ShouldEnableComments || this.configuration.commentParsing != "")
             {
                 feature.Comments.AddRange((gherkinDocument.Comments ?? new G.Comment[0]).Select(this.MapToComment));
             }
@@ -301,11 +303,13 @@ namespace PicklesDoc.Pickles.ObjectModel
             foreach (var comment in feature.Comments.ToArray())
             {
                 // Find the related feature
-                var relatedFeatureElement = feature.FeatureElements.LastOrDefault(x => x.Location.Line < comment.Location.Line);
+                var relatedFeatureElement =
+                    feature.FeatureElements.LastOrDefault(x => x.Location.Line < comment.Location.Line);
                 // Find the step to which the comment is related to
                 if (relatedFeatureElement != null)
                 {
-                    var stepAfterComment = relatedFeatureElement.Steps.FirstOrDefault(x => x.Location.Line > comment.Location.Line);
+                    var stepAfterComment =
+                        relatedFeatureElement.Steps.FirstOrDefault(x => x.Location.Line > comment.Location.Line);
                     if (stepAfterComment != null)
                     {
                         // Comment is before a step
@@ -315,7 +319,8 @@ namespace PicklesDoc.Pickles.ObjectModel
                     else
                     {
                         // Comment is located after the last step
-                        var stepBeforeComment = relatedFeatureElement.Steps.LastOrDefault(x => x.Location.Line < comment.Location.Line);
+                        var stepBeforeComment =
+                            relatedFeatureElement.Steps.LastOrDefault(x => x.Location.Line < comment.Location.Line);
                         if (stepBeforeComment != null && stepBeforeComment == relatedFeatureElement.Steps.Last())
                         {
 
@@ -326,9 +331,28 @@ namespace PicklesDoc.Pickles.ObjectModel
                 }
             }
 
-            foreach (var featureElement in feature.FeatureElements.ToArray())
+            //26.04.00 MI:add RCIS theme and story tag parsing from feature comments rapoe01 02/25/2019 - 
+            if (this.configuration.commentParsing == "RCIS.CIMax")
             {
-                featureElement.Feature = feature;
+                IFeatureElement previousFeature = null;
+                foreach (var featureElement in feature.FeatureElements.ToArray())
+                {
+                    featureElement.Feature = feature;
+                    this.parseRCISComments(previousFeature, featureElement, feature.Comments);
+                    previousFeature = featureElement;
+                }
+            }
+
+            if (this.configuration.commentParsing != "" && !this.configuration.ShouldEnableComments)
+            {
+                foreach (var featureElement in feature.FeatureElements.ToArray())
+                {
+                    foreach (var step in featureElement.Steps)
+                    {
+                        step.Comments.Clear();
+                    }
+                }
+                feature.Comments.Clear();
             }
 
             if (feature.Background != null)
@@ -339,6 +363,119 @@ namespace PicklesDoc.Pickles.ObjectModel
             feature.Language = gherkinDocument.Feature.Language ?? "en";
 
             return feature;
+        }
+
+        /// <summary>
+        /// Parse feature comment for theme and story id's and add them as tags
+        /// </summary>
+        /// <param name="previousScenario"></param>
+        /// <param name="currentScenario"></param>
+        /// <param name="featureFileComments"></param>
+        /// <param name="keepComments"></param>
+        /// <comments>26.04.00 MI:add RCIS theme and story tag parsing from feature comments rapoe01 02/25/2019 - </comments>
+        private void parseRCISComments(IFeatureElement previousScenario, IFeatureElement currentScenario,
+            List<Comment> featureFileComments)
+        {
+            // apply parsed comments before first scenario in feature file to scenario
+            if (previousScenario == null && featureFileComments.Count > 0)
+            {
+                bool gottostep = false;
+                foreach (var cmt in featureFileComments)
+                {
+                    if (!gottostep)
+                    {
+                        if (cmt.Type == CommentType.Normal)
+                        {
+                            this.AddParsedTags(currentScenario, cmt);
+                        }
+                        else
+                        {
+                            gottostep = true;
+                        }
+                    }
+                }
+            }
+            // apply parsed comments after last step of previous scenario to this scenario.
+            if (previousScenario != null && previousScenario.Steps.Count>0)
+            {
+                foreach (var comment in previousScenario.Steps[previousScenario.Steps.Count-1].Comments)
+                {
+                    if (comment.Type == CommentType.AfterLastStepComment)
+                    {
+                        this.AddParsedTags(currentScenario, comment);
+                    }
+                }
+            }
+            // apply parsed comments from steps of this scenario to this scenario
+            foreach (var step in currentScenario.Steps)
+            {
+                foreach (var comment in step.Comments)
+                {
+                    if (comment.Type != CommentType.AfterLastStepComment)
+                    {
+                        this.AddParsedTags(currentScenario, comment);
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Parse story and theme id's from individual comment
+        /// </summary>
+        /// <param name="featureElement"></param>
+        /// <param name="comment"></param>
+        /// <comments>26.04.00 MI:add RCIS theme and story tag parsing from feature comments rapoe01 02/25/2019 - </comments>
+        private void AddParsedTags(IFeatureElement featureElement, Comment comment)
+        {
+            string tag = this.parseRCISTheme(comment);
+            if (!string.IsNullOrEmpty(tag) && !featureElement.Tags.Contains(tag))
+            {
+                featureElement.Tags.Add(tag);
+            }
+
+            tag = this.parseRCISStory(comment);
+            if (!string.IsNullOrEmpty(tag) && !featureElement.Tags.Contains(tag))
+            {
+                featureElement.Tags.Add(tag);
+            }
+        }
+
+        private static Regex _storyRegex = new Regex(@"\(B[-_](\d+)\)");
+        /// <summary>
+        /// Parse story id from feature file comment
+        /// </summary>
+        /// <param name="cmt"></param>
+        /// <returns>story tag</returns>
+        /// <comments>26.04.00 MI:add RCIS theme and story tag parsing from feature comments rapoe01 02/25/2019 - </comments>
+        private string parseRCISStory(Comment cmt)
+        {
+            string retval = null;
+            Match match = _storyRegex.Match(cmt.Text);
+            if (match.Success)
+            {
+                retval = $"@B_{match.Groups[1].Value}";
+            }
+
+            return retval;
+        }
+
+        private  static Regex _themeRegex = new Regex(@"RI:\W*([^B][A-Za-z0-9-]*)");
+        /// <summary>
+        /// Parse theme id from feature file comment
+        /// </summary>
+        /// <param name="cmt"></param>
+        /// <returns>theme tag</returns>
+        /// <comments>26.04.00 MI:add RCIS theme and story tag parsing from feature comments rapoe01 02/25/2019 - </comments>
+        private string parseRCISTheme(Comment cmt)
+        {
+            string retval = null;
+            Match match = _themeRegex.Match(cmt.Text);
+            if (match.Success)
+            {
+                retval =  $"@T_{match.Groups[1].Value}";
+            }
+
+            return retval;
         }
 
         private IFeatureElement MapToFeatureElement(G.ScenarioDefinition sd,params string[] tagsToHide)

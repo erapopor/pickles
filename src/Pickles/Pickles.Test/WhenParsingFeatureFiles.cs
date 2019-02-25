@@ -354,6 +354,72 @@ Feature: Test
             Check.That(feature.FeatureElements[0].Tags[1]).IsEqualTo("@scenario-tag-2");
         }
 
+//26.04.00 MI:add RCIS theme and story tag parsing from feature comments rapoe01 02/25/2019 - 
+        [Test]
+        public void Parse_story_and_theme_from_RCIS_comment()
+        {
+            string featureText =
+                @"# ignore this comment
+Feature: CLU
+	Validate CLU entry
+#24.01.00 RI:102069-03 (B-12010) heilr01 08/19/2016 - enter specflow
+@Integration
+Scenario: Verify_CLU_Against_CLU_Certified
+#24.01.00 RI:B-12010 heilr01 08/19/2016 - Display hard stop when CLU entered does not exist in CLU table for the given State/County
+	Given I have entered FN ""271"", Tract ""4679"", Field ""4""
+            When I press OK
+            Then the number of CLUObjects is 1
+            And The CLU list should contain
+                | CLUID | FSAAdminStateID | FSAAdminCountyID | LocationStateID | LocationCountyID |
+                | 610548e2 - 9a4d - 11d6 - 935c - 00c04f5c086f | 27 | 153 | 27 | 153 |
+#24.04.00 RI:9026-101 (B-15726) EGALR01- 3/17/2017 G8: ARPI - Mapping - ACRSI Send -Populate the FSA values correctly when we have a great8 crop (CLU grid and Mapping)
+# this test is to check the dropdown list of FSA Commodity,Type,IntendedUse 
+                @Scheduled
+            Scenario: Check FSA values For G8 Crop
+            Given I load Policy Crop Year 2017, Policy Number ""861621"", State ""OH""
+            And I have loaded an existing ARPolicy of Crop Year 2017, Policy Number ""861621"", State ""OH""
+            And I load the following Crop Line: ""WHEAT|ARP|NTS"" , ""Policy"" , ""2017,OH,861621""
+            And Agency of loaded policy has ACRSI Send Set
+                When I set typecode classcode subclasscode for PolicyCrop ""PolicyCrop"", ""WHEAT|ARP|NTS"" to ""997"", ""091"", ""997""
+            Then The FSACommodity list should contain
+                | Commodity |
+                | WHEAT |
+                And The FSA Type list should contain
+                | FSA Type |
+                | Hard Amber Durum, Winter |
+                | Hard Red, Winter |
+                | Hard White, Winter |
+                | Soft Red, Winter |
+                | soft White, Winter |
+            And The FSAIntendedUse list should contain
+                | FSA Intended Use |
+                | Grazing |
+                | Seed |
+                | Green Manure |
+                | Grain |
+                | Cover |
+                | Haying |
+                | Green Chop |
+                | Processed |";
+            var parser = Container.Resolve<FeatureParser>();
+            Configuration.commentParsing = "RCIS.CIMax";
+            Configuration.DisableComments();
+            Feature feature = parser.Parse(new StringReader(featureText));
+
+            IFeatureElement scenario = feature.FeatureElements.First();
+            Check.That(scenario.Tags).Contains("@Integration");
+            Step stepGiven = scenario.Steps[0];
+            Check.That(scenario.Tags).Contains("@T_102069-03");
+            Check.That(scenario.Tags).Contains("@B_12010");
+
+            Check.That(scenario.Steps.Count).IsEqualTo(4);
+            Check.That(feature.FeatureElements.Count).IsEqualTo(2);
+
+            scenario = feature.FeatureElements[1];
+            Check.That(scenario.Tags).Contains("@T_9026-101");
+            Check.That(scenario.Tags).Contains("@B_15726");
+        }
+
         [Test]
         public void Then_can_parse_scenario_with_comments_successfully()
         {

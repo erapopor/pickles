@@ -46,6 +46,8 @@ namespace PicklesDoc.Pickles.CommandLine
         private string enableCommentsValue;
         private string excludeTags;
         private string hideTags;
+        //26.04.00 MI:add RCIS theme and story tag parsing from feature comments rapoe01 02/25/2019 - 
+        private string commentParser;
 
         public CommandLineArgumentParser(IFileSystem fileSystem)
         {
@@ -65,7 +67,8 @@ namespace PicklesDoc.Pickles.CommandLine
                 { "exp|include-experimental-features", CommandLineArgumentHelpTexts.HelpIncludeExperimentalFeatures, v => this.includeExperimentalFeatures = v != null },
                 { "cmt|enableComments=", CommandLineArgumentHelpTexts.HelpEnableComments, v => this.enableCommentsValue = v },
                 { "et|excludeTags=", CommandLineArgumentHelpTexts.HelpExcludeTags, v => this.excludeTags = v },
-                { "ht|hideTags=", CommandLineArgumentHelpTexts.HelpHideTags, v => this.hideTags = v }
+                { "ht|hideTags=", CommandLineArgumentHelpTexts.HelpHideTags, v => this.hideTags = v },
+                { "cp|commentParser=", CommandLineArgumentHelpTexts.CommentParserTags, v => this.commentParser = v}
             };
         }
 
@@ -154,6 +157,11 @@ namespace PicklesDoc.Pickles.CommandLine
                 configuration.DisableComments();
             }
 
+            //26.04.00 MI:add RCIS theme and story tag parsing from feature comments rapoe01 02/25/2019 - 
+            if (!string.IsNullOrEmpty(this.commentParser))
+            {
+                configuration.commentParsing = this.commentParser;
+            }
             return true;
         }
 

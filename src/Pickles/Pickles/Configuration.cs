@@ -115,6 +115,8 @@ namespace PicklesDoc.Pickles
         public string ExcludeTags { get; set; }
 
         public string HideTags { get; set; }
+        //26.04.00 MI:add RCIS theme and story tag parsing from feature comments rapoe01 02/25/2019 - 
+        public string commentParsing { get; set; } //set to RCIS:CIMax for comment parsing to insert theme,story tags
 
         private void AddTestResultFileIfItExists(FileInfoBase fileInfoBase)
         {

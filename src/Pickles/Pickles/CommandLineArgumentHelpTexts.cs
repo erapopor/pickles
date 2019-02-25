@@ -33,6 +33,9 @@ namespace PicklesDoc.Pickles
         public const string HelpExcludeTags = "exclude scenarios that match this tag";
         public const string HelpHideTags = "Technical tags that shouldn't be displayed (separated by ;)";
 
+        //26.04.00 MI:add RCIS theme and story tag parsing from feature comments rapoe01 02/25/2019 - 
+        public const string CommentParserTags = "Parser for Feature File Comments";
+
         public const string HelpTestResultsFile =
             "the path to the linked test results file (can be a semicolon-separated list of files)";
 

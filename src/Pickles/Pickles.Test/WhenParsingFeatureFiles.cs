@@ -409,15 +409,40 @@ Scenario: Verify_CLU_Against_CLU_Certified
             IFeatureElement scenario = feature.FeatureElements.First();
             Check.That(scenario.Tags).Contains("@Integration");
             Step stepGiven = scenario.Steps[0];
-            Check.That(scenario.Tags).Contains("@T_102069-03");
+            // esr 2/26/2019 translate hyphen in theme number to underscore
+            Check.That(scenario.Tags).Contains("@T_102069_03");
             Check.That(scenario.Tags).Contains("@B_12010");
 
             Check.That(scenario.Steps.Count).IsEqualTo(4);
             Check.That(feature.FeatureElements.Count).IsEqualTo(2);
 
             scenario = feature.FeatureElements[1];
-            Check.That(scenario.Tags).Contains("@T_9026-101");
+            Check.That(scenario.Tags).Contains("@T_9026_101");
             Check.That(scenario.Tags).Contains("@B_15726");
+        }
+        // esr 2/26/2019 don't add a story tag if story tag exists in old format without underscore
+        [Test]
+        public void dont_Parse_story_from_RCIS_comment_where_old_tag_exists()
+        {
+            string featureText =
+                @"# ignore this comment
+Feature: CLU
+	Validate CLU entry
+#24.01.00 RI:102069-03 (B-12010) heilr01 08/19/2016 - enter specflow
+@Integration
+@B12010
+Scenario: test
+    Given some feature
+    When it runs
+    Then I should see that this thing happens";
+
+            var parser = Container.Resolve<FeatureParser>();
+            Configuration.commentParsing = "RCIS.CIMax";
+            Configuration.DisableComments();
+            Feature feature = parser.Parse(new StringReader(featureText));
+
+            IFeatureElement scenario = feature.FeatureElements.First();
+            Check.That(scenario.Tags).ContainsOnlyElementsThatMatch(t=>(t=="@Integration"||t=="@B12010"||t=="@T_102069_03"));
         }
 
         [Test]

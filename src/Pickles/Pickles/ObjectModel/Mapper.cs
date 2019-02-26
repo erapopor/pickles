@@ -21,7 +21,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-//26.04.00 MI:add RCIS theme and story tag parsing from feature comments rapoe01 02/25/2019 - 
+//esr 02/26/2019 add theme and story tag parsing from feature comments - 
 using System.Text.RegularExpressions;
 using PicklesDoc.Pickles.Extensions;
 using G = Gherkin.Ast;
@@ -281,7 +281,7 @@ namespace PicklesDoc.Pickles.ObjectModel
                 feature.AddBackground(this.MapToScenario(background));
             }
 
-            //26.04.00 MI:add RCIS theme and story tag parsing from feature comments rapoe01 02/25/2019 - 
+            //esr 02/26/2019 add theme and story tag parsing from feature comments - 
             if (this.configuration.ShouldEnableComments || this.configuration.commentParsing != "")
             {
                 feature.Comments.AddRange((gherkinDocument.Comments ?? new G.Comment[0]).Select(this.MapToComment));
@@ -331,7 +331,7 @@ namespace PicklesDoc.Pickles.ObjectModel
                 }
             }
 
-            //26.04.00 MI:add RCIS theme and story tag parsing from feature comments rapoe01 02/25/2019 - 
+            //esr 02/26/2019 add theme and story tag parsing from feature comments - 
             if (this.configuration.commentParsing == "RCIS.CIMax")
             {
                 IFeatureElement previousFeature = null;
@@ -372,7 +372,7 @@ namespace PicklesDoc.Pickles.ObjectModel
         /// <param name="currentScenario"></param>
         /// <param name="featureFileComments"></param>
         /// <param name="keepComments"></param>
-        /// <comments>26.04.00 MI:add RCIS theme and story tag parsing from feature comments rapoe01 02/25/2019 - </comments>
+        /// <comments>esr 02/26/2019 add theme and story tag parsing from feature comments - </comments>
         private void parseRCISComments(IFeatureElement previousScenario, IFeatureElement currentScenario,
             List<Comment> featureFileComments)
         {
@@ -424,7 +424,8 @@ namespace PicklesDoc.Pickles.ObjectModel
         /// </summary>
         /// <param name="featureElement"></param>
         /// <param name="comment"></param>
-        /// <comments>26.04.00 MI:add RCIS theme and story tag parsing from feature comments rapoe01 02/25/2019 - </comments>
+        /// <comments>esr 02/25/2019 add theme and story tag parsing from feature comments -
+        /// esr 02/26/2019 check for story tag with and without underscore</comments>
         private void AddParsedTags(IFeatureElement featureElement, Comment comment)
         {
             string tag = this.parseRCISTheme(comment);
@@ -434,9 +435,10 @@ namespace PicklesDoc.Pickles.ObjectModel
             }
 
             tag = this.parseRCISStory(comment);
-            if (!string.IsNullOrEmpty(tag) && !featureElement.Tags.Contains(tag))
+            if (!string.IsNullOrEmpty(tag) &&
+                !(featureElement.Tags.Contains($"@B_{tag}") || featureElement.Tags.Contains($"@B{tag}")))
             {
-                featureElement.Tags.Add(tag);
+                featureElement.Tags.Add($"@B_{tag}");
             }
         }
 
@@ -445,15 +447,16 @@ namespace PicklesDoc.Pickles.ObjectModel
         /// Parse story id from feature file comment
         /// </summary>
         /// <param name="cmt"></param>
-        /// <returns>story tag</returns>
-        /// <comments>26.04.00 MI:add RCIS theme and story tag parsing from feature comments rapoe01 02/25/2019 - </comments>
+        /// <returns>story number</returns>
+        /// <comments>esr 02/26/2019 add theme and story tag parsing from feature comments -
+        /// esr 2/26/2019 don't add a story tag if story tag exists in old format without underscore</comments>
         private string parseRCISStory(Comment cmt)
         {
             string retval = null;
             Match match = _storyRegex.Match(cmt.Text);
             if (match.Success)
             {
-                retval = $"@B_{match.Groups[1].Value}";
+                retval = match.Groups[1].Value;
             }
 
             return retval;
@@ -465,14 +468,27 @@ namespace PicklesDoc.Pickles.ObjectModel
         /// </summary>
         /// <param name="cmt"></param>
         /// <returns>theme tag</returns>
-        /// <comments>26.04.00 MI:add RCIS theme and story tag parsing from feature comments rapoe01 02/25/2019 - </comments>
+        /// <comments>esr 02/25/2019 add theme and story tag parsing from feature comments -
+        /// esr 02/26/2019 translate hyphen to underscore in theme</comments>
         private string parseRCISTheme(Comment cmt)
         {
             string retval = null;
             Match match = _themeRegex.Match(cmt.Text);
             if (match.Success)
             {
-                retval =  $"@T_{match.Groups[1].Value}";
+                string dest = "";
+                foreach (var c in match.Groups[1].Value)
+                {
+                    if (c != "-"[0])
+                    {
+                        dest += c;
+                    }
+                    else
+                    {
+                        dest += "_";
+                    }
+                }
+                retval =  $"@T_{dest}";
             }
 
             return retval;

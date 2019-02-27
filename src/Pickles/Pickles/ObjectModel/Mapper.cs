@@ -334,11 +334,17 @@ namespace PicklesDoc.Pickles.ObjectModel
             //esr 02/26/2019 add theme and story tag parsing from feature comments - 
             if (this.configuration.commentParsing == "RCIS.CIMax")
             {
+                //esr 02/27/2019 skip feature comments before end of background
                 IFeatureElement previousFeature = null;
+                int firstLineToParse = 0;
+                if (feature.Background != null && feature.Background.Steps.Count > 0)
+                {
+                    firstLineToParse = feature.Background.Steps[feature.Background.Steps.Count - 1].Location.Line;
+                }
                 foreach (var featureElement in feature.FeatureElements.ToArray())
                 {
                     featureElement.Feature = feature;
-                    this.parseRCISComments(previousFeature, featureElement, feature.Comments);
+                    this.parseRCISComments(previousFeature, featureElement, feature.Comments, firstLineToParse);
                     previousFeature = featureElement;
                 }
             }
@@ -371,10 +377,11 @@ namespace PicklesDoc.Pickles.ObjectModel
         /// <param name="previousScenario"></param>
         /// <param name="currentScenario"></param>
         /// <param name="featureFileComments"></param>
-        /// <param name="keepComments"></param>
-        /// <comments>esr 02/26/2019 add theme and story tag parsing from feature comments - </comments>
+        /// <param name="firstLineToParse"></param>
+        /// <comments>esr 02/26/2019 add theme and story tag parsing from feature comments -
+        /// esr 02/27/2019 skip feature comments before end of background </comments>
         private void parseRCISComments(IFeatureElement previousScenario, IFeatureElement currentScenario,
-            List<Comment> featureFileComments)
+            List<Comment> featureFileComments,int firstLineToParse)
         {
             // apply parsed comments before first scenario in feature file to scenario
             if (previousScenario == null && featureFileComments.Count > 0)
@@ -384,11 +391,11 @@ namespace PicklesDoc.Pickles.ObjectModel
                 {
                     if (!gottostep)
                     {
-                        if (cmt.Type == CommentType.Normal)
+                        if (cmt.Type == CommentType.Normal && cmt.Location.Line >= firstLineToParse)
                         {
                             this.AddParsedTags(currentScenario, cmt);
                         }
-                        else
+                        else if (cmt.Type != CommentType.Normal)
                         {
                             gottostep = true;
                         }
@@ -461,8 +468,8 @@ namespace PicklesDoc.Pickles.ObjectModel
 
             return retval;
         }
-
-        private  static Regex _themeRegex = new Regex(@"RI:\W*([^B][A-Za-z0-9-]*)");
+        // esr 02/26/2019 don't parse RI:(B-12345) as theme
+        private static Regex _themeRegex = new Regex(@"RI:\W*([^B(][A-Za-z0-9-]*)");
         /// <summary>
         /// Parse theme id from feature file comment
         /// </summary>

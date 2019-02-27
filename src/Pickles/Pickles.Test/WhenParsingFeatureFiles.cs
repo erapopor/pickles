@@ -444,8 +444,38 @@ Scenario: test
             IFeatureElement scenario = feature.FeatureElements.First();
             Check.That(scenario.Tags).ContainsOnlyElementsThatMatch(t=>(t=="@Integration"||t=="@B12010"||t=="@T_102069_03"));
         }
-
+        //esr 02/26/2019 don't parse RI:(B-12345) as theme
         [Test]
+        public void dont_parse_story_preceded_by_RI_prefix()
+        {
+
+        string featureText =
+            @"# ignore this comment
+Feature: Test
+#26.03.00 RI:(B-32045) mudis01 10/15/2018 - For 2018 Hail IPAReduced value should not be rounded
+@Integration
+@B_32045
+@BR_HAIL163
+Scenario: Round IPAReduced to Whole Dollar
+	Given I load a hail Policy of Reinsurance Year 2018, Policy Number ""854310"", State ""IA""	                             
+        And I have a hail line with following values
+        | Acres | IPA | Prorata % |
+        | 72    | 255 | .25        |
+        When I Save
+            Then the hail line will have the following calculated values:
+        | Field         | Value   |
+        | Liability     | 4590    |
+";
+        var parser = Container.Resolve<FeatureParser>();
+        Configuration.commentParsing = "RCIS.CIMax";
+        Configuration.DisableComments();
+        Feature feature = parser.Parse(new StringReader(featureText));
+
+        IFeatureElement scenario = feature.FeatureElements.First();
+        Check.That(scenario.Tags).ContainsOnlyElementsThatMatch(t=>(t=="@Integration"||t== "@B_32045" || t== "@BR_HAIL163"));
+
+    }
+    [Test]
         public void Then_can_parse_scenario_with_comments_successfully()
         {
             string featureText =

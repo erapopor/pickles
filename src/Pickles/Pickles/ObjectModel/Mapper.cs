@@ -468,7 +468,7 @@ namespace PicklesDoc.Pickles.ObjectModel
 
             return retval;
         }
-        // esr 02/26/2019 don't parse RI:(B-12345) as theme
+        // esr 02/27/2019 don't parse RI:(B-12345) as theme
         private static Regex _themeRegex = new Regex(@"RI:\W*([^B(][A-Za-z0-9-]*)");
         /// <summary>
         /// Parse theme id from feature file comment
